@@ -1,25 +1,117 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Course5-assignment1"
+author: "WickyDonkey"
+date: "25 oktober 2018"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+# Peer assignment course 5 - project 1
 
+This is an R Markdown document of the first peer assignement in the 5th course of R for Data Science. 
 
+## Read the data
 
-## What is mean total number of steps taken per day?
+Code for reading in the dataset and/or processing the data
 
+```{r readdata}
+library(dplyr)
+library(ggplot2)
 
+setwd("~/R/Coursera")
+a <- read.csv("activity.csv")
 
-## What is the average daily activity pattern?
+a <- mutate(a,date=as.Date(date))
+a <- mutate(a,interval=factor(interval))
 
+```
 
+## Total steps per day
 
-## Imputing missing values
+Histogram of the total number of steps taken each day
 
+```{r totalsteps}
+total.steps <- a %>% group_by(date) %>% summarize(steps=sum(steps,na.rm=TRUE)) 
+ggplot(total.steps,aes(steps)) + geom_histogram() + ggtitle("Distribution of total steps per day")
+```
 
+Mean and median number of steps taken each day 
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r mean}
+mean.steps <- mean(total.steps$steps,na.rm=TRUE)
+print(mean.steps, digits=7)
+
+median.steps <- median(total.steps$steps,na.rm=TRUE)
+print(median.steps)
+
+```
+
+## average daily acitivity pattern
+
+Time series plot of the average number of steps taken
+
+```{r daily}
+daily.pattern <- a %>% group_by(interval) %>% summarize(steps=mean(steps,na.rm=TRUE))
+
+plot(daily.pattern,type="l",main="Average daily activity pattern")
+```
+
+## Interval with maximum number of steps
+
+The 5-minute interval that, on average, contains the maximum number of steps is interval 835
+
+```{r}
+with(daily.pattern, daily.pattern[steps==max(steps),"interval"])
+```
+
+## Missing values
+
+Code to describe and show a strategy for imputing missing data
+By the code given below it is shown that only "steps" contains NA elements
+Strategy is to replace the NA in steps by the average steps at that interval
+
+```{r}
+summary(a)
+count(a[is.na(a$date),])
+count(a[is.na(a$interval),])
+count(a[is.na(a$steps),])
+
+# impute average steps at specific interval for na values
+a.new <- mutate(a, steps=ifelse(is.na(a$steps),daily.pattern$steps[daily.pattern$interval %in% a$interval],a$steps))
+
+```
+
+## total steps per day
+
+Histogram of the total number of steps taken each day after missing values are imputed
+Afterwards the mean and median values are printed
+
+```{r}
+new.total.steps <- a.new %>% group_by(date) %>% summarize(steps=sum(steps,na.rm=TRUE)) 
+ggplot(new.total.steps,aes(steps)) + geom_histogram() + ggtitle("Distributrion of total steps per day")
+
+new.mean.steps <- mean(new.total.steps$steps,na.rm=TRUE)
+print(new.mean.steps, digits=7)
+
+new.median.steps <- median(new.total.steps$steps,na.rm=TRUE)
+print(new.median.steps)
+```
+
+## Plot the activity for weekdays and weekend
+
+Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+First step is to add "day" (weekend, weekday) to the a.new dataframe
+
+```{r}
+# impute the factor weekdays
+a.new <- mutate(a.new,day=as.factor(ifelse(weekdays(date)%in% c("zaterdag","zondag"),"weekend","weekday")))
+
+a.new <- group_by(a.new, day, interval)
+a.day<- summarize(a.new,steps=mean(steps))
+
+ggplot(a.day, aes(interval, steps)) + geom_point() + facet_grid(day~.) + ggtitle("Distributrion of total steps per interval")
+```
+
